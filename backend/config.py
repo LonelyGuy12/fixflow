@@ -5,12 +5,12 @@ All API keys, model config, and constants loaded from environment variables.
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 # ── LLM Config ──────────────────────────────────────────────────────────────
 GLM_API_KEY: str = os.getenv("GLM_API_KEY", "")
 GLM_BASE_URL: str = os.getenv("GLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4")
-GLM_MODEL: str = os.getenv("GLM_MODEL", "glm-5")
+GLM_MODEL: str = os.getenv("GLM_MODEL", "glm-4-air")
 
 # ── GitHub Config ────────────────────────────────────────────────────────────
 GITHUB_TOKEN: str = os.getenv("GITHUB_TOKEN", "")

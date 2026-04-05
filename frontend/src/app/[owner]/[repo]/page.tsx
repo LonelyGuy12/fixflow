@@ -56,7 +56,7 @@ export default function RepoDashboard() {
   useEffect(() => {
     const loadRepo = async () => {
       try {
-        const res = await fetch(`http://127.0.0.1:8000/api/repo_info?repo_url=${encodeURIComponent(repoUrl)}`);
+        const res = await fetch(`/api/repo_info?repo_url=${encodeURIComponent(repoUrl)}`);
         if (!res.ok) {
           const data = await res.json();
           throw new Error(data.detail || "Failed to fetch repository info");
@@ -99,7 +99,7 @@ export default function RepoDashboard() {
     setSelectedFilePath(path);
     setIsLoadingFile(true);
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/file_content?repo_url=${encodeURIComponent(repoUrlToUse)}&file_path=${encodeURIComponent(path)}`);
+      const res = await fetch(`/api/file_content?repo_url=${encodeURIComponent(repoUrlToUse)}&file_path=${encodeURIComponent(path)}`);
       if (!res.ok) throw new Error("Failed to fetch file content");
       const data = await res.json();
       setSelectedFileContent(data.content);
@@ -126,7 +126,7 @@ export default function RepoDashboard() {
     setStatusMessage("Connecting to FixFlow API...");
 
     const params = new URLSearchParams({ issue_url: finalIssueUrl, repo_url: repoUrl, run_confidence: runConfidence.toString() });
-    const eventSource = new EventSource(`http://127.0.0.1:8000/api/analyze?${params.toString()}`);
+    const eventSource = new EventSource(`/api/analyze?${params.toString()}`);
     setupEventSource(eventSource);
   };
 
@@ -143,7 +143,7 @@ export default function RepoDashboard() {
     setStatusMessage("Sending feedback to FixFlow...");
     const params = new URLSearchParams({ session_id: sessionId, feedback });
     setFeedback("");
-    const eventSource = new EventSource(`http://127.0.0.1:8000/api/refine?${params.toString()}`);
+    const eventSource = new EventSource(`/api/refine?${params.toString()}`);
     setupEventSource(eventSource);
   };
 
@@ -206,7 +206,7 @@ export default function RepoDashboard() {
   const handleOpenPR = async () => {
     if (!result) return;
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/pr", {
+      const res = await fetch("/api/pr", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -226,15 +226,57 @@ export default function RepoDashboard() {
   if (uiState === 'LOADING_REPO') {
     return (
       <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 24px', borderBottom: '1px solid var(--border-color)', flexShrink: 0 }}>
-          <span style={{ fontSize: '1.4rem', cursor: 'pointer' }} onClick={() => router.push('/')}>🔧</span>
-          <span style={{ fontWeight: 800, fontSize: '1.2rem', background: 'linear-gradient(135deg, var(--primary), var(--secondary))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>FixFlow</span>
-          <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontFamily: 'monospace' }}>/ {owner} / {repo}</span>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 16, 
+          padding: '12px 32px', 
+          borderBottom: '1px solid var(--border-color)', 
+          flexShrink: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          backdropFilter: 'blur(10px)'
+        }}>
+          <span style={{ fontSize: '1.5rem', cursor: 'pointer' }} onClick={() => router.push('/')}>🔧</span>
+          <span style={{ 
+            fontWeight: 800, 
+            fontSize: '1.3rem', 
+            color: 'var(--text-main)'
+          }}>
+            FixFlow
+          </span>
+          <span style={{ color: 'var(--border-color)', fontSize: '1.2rem' }}>/</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: '0.95rem', fontFamily: 'monospace' }}>
+            {owner} / {repo}
+          </span>
         </div>
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
-          <div className="loading-spinner" style={{ width: 36, height: 36 }} />
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Cloning <strong style={{ color: 'var(--text-main)' }}>{owner}/{repo}</strong>...</p>
-          {error && <div style={{ color: 'var(--error)', fontSize: '0.85rem' }}>❌ {error}</div>}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 24 }}>
+          <div className="loading-spinner" style={{ width: 48, height: 48 }} />
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ color: 'var(--text-main)', fontSize: '1.2rem', fontWeight: 600, marginBottom: 8 }}>
+              Analyzing Repository
+            </p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+              Cloning <span className="gradient-text" style={{ fontWeight: 600 }}>{owner}/{repo}</span>
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+            <div className="timeline-item" style={{ border: 'none', padding: 0 }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Fetching files...</span>
+            </div>
+          </div>
+          {error && (
+            <div style={{ 
+              color: 'var(--error)', 
+              fontSize: '0.85rem', 
+              background: 'rgba(239, 68, 68, 0.1)', 
+              padding: 16, 
+              borderRadius: 8,
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              maxWidth: 400
+            }}>
+              ❌ {error}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -245,15 +287,52 @@ export default function RepoDashboard() {
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      {/* Top Bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 24px', borderBottom: '1px solid var(--border-color)', flexShrink: 0 }}>
-        <span style={{ fontSize: '1.4rem', cursor: 'pointer' }} onClick={() => router.push('/')}>🔧</span>
-        <span style={{ fontWeight: 800, fontSize: '1.2rem', background: 'linear-gradient(135deg, var(--primary), var(--secondary))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>FixFlow</span>
-        <span style={{ color: 'var(--border-color)' }}>/</span>
-        <a href={repoUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontFamily: 'monospace', textDecoration: 'none' }}>
-          {owner}/<strong style={{ color: 'var(--text-main)' }}>{repo}</strong>
+      {/* Vercel-style Top Bar */}
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: 16, 
+        padding: '12px 32px', 
+        borderBottom: '1px solid var(--border-color)', 
+        flexShrink: 0,
+        background: 'rgba(0, 0, 0, 0.5)',
+        backdropFilter: 'blur(10px)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => router.push('/')}>
+          <span style={{ fontSize: '1.5rem' }}>🔧</span>
+          <span style={{ 
+            fontWeight: 800, 
+            fontSize: '1.3rem', 
+            color: 'var(--text-main)'
+          }}>
+            FixFlow
+          </span>
+        </div>
+        <span style={{ color: 'var(--border-color)', fontSize: '1.2rem' }}>/</span>
+        <a href={repoUrl} target="_blank" rel="noreferrer" style={{ 
+          color: 'var(--text-muted)', 
+          fontSize: '0.95rem', 
+          fontFamily: 'monospace', 
+          textDecoration: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6
+        }}>
+          <span style={{ opacity: 0.7 }}>{owner}</span>
+          <span style={{ color: 'var(--border-color)' }}>/</span>
+          <strong style={{ color: 'var(--text-main)' }}>{repo}</strong>
         </a>
-        <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{repoInfo.tree.length} files</span>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span className="stat-badge" style={{ fontSize: '0.7rem' }}>
+              📁 {repoInfo.tree.length} files
+            </span>
+            <span className="stat-badge" style={{ fontSize: '0.7rem' }}>
+              🐛 {repoInfo.issues.length} issues
+            </span>
+          </div>
+          <span className="status-online" style={{ fontSize: '0.75rem' }}>Live</span>
+        </div>
       </div>
 
       {/* Main IDE */}
@@ -262,8 +341,22 @@ export default function RepoDashboard() {
 
           {/* Left: Explorer */}
           <div className="glass-panel" style={{ padding: 16, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <h3 style={{ marginBottom: 12, fontSize: '0.8rem', color: 'var(--text-main)', opacity: 0.6, letterSpacing: '0.1em' }}>📁 EXPLORER</h3>
-            <div style={{ flex: 1, overflowY: 'auto', fontSize: '0.78rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <h3 style={{ fontSize: '0.75rem', color: 'var(--text-muted)', letterSpacing: '0.1em', fontWeight: 600 }}>
+                📁 EXPLORER
+              </h3>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                {repoInfo.tree.length}
+              </span>
+            </div>
+            <div style={{ 
+              flex: 1, 
+              overflowY: 'auto', 
+              fontSize: '0.78rem', 
+              color: 'var(--text-muted)', 
+              fontFamily: 'monospace',
+              paddingRight: 4
+            }}>
               {repoInfo.tree.map((file, i) => {
                 const isAnalyzing = analyzingFiles.includes(file.path);
                 const isNew = newFiles.includes(file.path);
@@ -273,7 +366,6 @@ export default function RepoDashboard() {
                     key={i}
                     onClick={() => {
                       if (isNew || isFixed) {
-                        // Show the generated content directly (no need to fetch from GitHub)
                         setSelectedFilePath(file.path);
                         setFixedFileView({ path: file.path, content: result.fixed_files[file.path] });
                       } else {
@@ -283,24 +375,25 @@ export default function RepoDashboard() {
                     }}
                     className={isAnalyzing ? 'analyzing-glow' : ''}
                     style={{
-                      padding: '5px 8px',
+                      padding: '6px 10px',
                       cursor: 'pointer',
-                      borderRadius: '4px',
-                      marginBottom: '1px',
-                      backgroundColor: selectedFilePath === file.path ? 'rgba(139, 92, 246, 0.15)' : 'transparent',
-                      color: isNew ? '#a3be8c' : isFixed ? '#ebcb8b' : selectedFilePath === file.path ? 'var(--primary)' : 'inherit',
+                      borderRadius: '6px',
+                      marginBottom: '2px',
+                      backgroundColor: selectedFilePath === file.path ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
+                      color: isNew ? '#10b981' : isFixed ? '#f59e0b' : selectedFilePath === file.path ? 'var(--primary)' : 'inherit',
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
-                      transition: 'all 0.2s ease'
+                      transition: 'all 0.2s ease',
+                      border: selectedFilePath === file.path ? '1px solid rgba(99, 102, 241, 0.25)' : '1px solid transparent'
                     }}
                   >
-                    <span style={{ marginRight: 6 }}>
+                    <span style={{ marginRight: 8, fontSize: '0.9rem' }}>
                       {isAnalyzing ? '🧠' : isNew ? '✨' : isFixed ? '✏️' : '📄'}
                     </span>
                     {file.path}
-                    {isNew && <span style={{ marginLeft: 6, fontSize: '0.65rem', color: '#a3be8c', opacity: 0.8 }}>NEW</span>}
-                    {isFixed && <span style={{ marginLeft: 6, fontSize: '0.65rem', color: '#ebcb8b', opacity: 0.8 }}>MOD</span>}
+                    {isNew && <span style={{ marginLeft: 8, fontSize: '0.65rem', color: '#10b981', opacity: 0.9, fontWeight: 600 }}>NEW</span>}
+                    {isFixed && <span style={{ marginLeft: 8, fontSize: '0.65rem', color: '#f59e0b', opacity: 0.9, fontWeight: 600 }}>MOD</span>}
                   </div>
                 );
               })}
@@ -308,7 +401,7 @@ export default function RepoDashboard() {
           </div>
 
           {/* Center: Editor + Terminal Drawer */}
-          <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0 }}>
             <div className="terminal-window" style={{ flex: 1, display: 'flex', flexDirection: 'column', borderBottomLeftRadius: 0, borderBottomRightRadius: 0, minHeight: 0 }}>
               <div className="terminal-header">
                 <div className="terminal-dot dot-red"></div>
@@ -320,11 +413,11 @@ export default function RepoDashboard() {
               </div>
               <div style={{ flex: 1, overflow: 'auto', backgroundColor: '#0d0d12' }}>
                 {fixedFileView && !running ? (
-                  <pre style={{ margin: 0, padding: '20px', fontSize: '0.83rem', fontFamily: 'monospace', color: '#a3be8c', lineHeight: '1.6' }}>
+                  <pre style={{ margin: 0, padding: '20px', fontSize: '0.83rem', fontFamily: 'monospace', color: '#10b981', lineHeight: '1.6' }}>
                     {fixedFileView.content}
                   </pre>
                 ) : running && (statusName === '4_fix' || statusName === '4_refine') && streamChunks.length > 0 ? (
-                  <pre style={{ margin: 0, padding: '20px', fontSize: '0.83rem', fontFamily: 'monospace', color: '#a3be8c', lineHeight: '1.6' }}>
+                  <pre style={{ margin: 0, padding: '20px', fontSize: '0.83rem', fontFamily: 'monospace', color: '#10b981', lineHeight: '1.6' }}>
                     {streamChunks.join('')}
                     <span style={{ borderRight: '2px solid var(--primary)' }}> </span>
                     <div ref={logsEndRef} />
@@ -372,76 +465,188 @@ export default function RepoDashboard() {
           <div className="glass-panel" style={{ padding: 16, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             {result && !running ? (
               <>
-                <h3 style={{ marginBottom: 6, fontSize: '0.85rem', color: 'var(--success)' }}>✅ FIX READY</h3>
-                <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 12, lineHeight: 1.5 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <h3 style={{ fontSize: '0.85rem', color: 'var(--success)', fontWeight: 600 }}>✅ FIX READY</h3>
+                  <div className="pulse-dot" style={{ width: 6, height: 6 }}></div>
+                </div>
+                <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 16, lineHeight: 1.5 }}>
                   {result.bug_summary?.slice(0, 150)}...
                 </p>
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 6, letterSpacing: '0.1em' }}>CHANGED FILES:</div>
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 8, letterSpacing: '0.1em', fontWeight: 600 }}>
+                    CHANGED FILES
+                  </div>
                   {Object.keys(result.fixed_files || {}).map((path) => (
                     <div
                       key={path}
                       onClick={() => setFixedFileView({ path, content: result.fixed_files[path] })}
                       style={{
-                        padding: '6px 10px', borderRadius: 6, marginBottom: 4, cursor: 'pointer',
-                        fontSize: '0.72rem', fontFamily: 'monospace',
-                        backgroundColor: fixedFileView?.path === path ? 'rgba(163, 190, 140, 0.15)' : 'rgba(255,255,255,0.04)',
-                        color: fixedFileView?.path === path ? '#a3be8c' : 'var(--text-muted)',
-                        border: fixedFileView?.path === path ? '1px solid rgba(163,190,140,0.3)' : '1px solid transparent',
-                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                        padding: '8px 12px', 
+                        borderRadius: 6, 
+                        marginBottom: 6, 
+                        cursor: 'pointer',
+                        fontSize: '0.72rem', 
+                        fontFamily: 'monospace',
+                        backgroundColor: fixedFileView?.path === path ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255,255,255,0.03)',
+                        color: fixedFileView?.path === path ? '#10b981' : 'var(--text-muted)',
+                        border: fixedFileView?.path === path ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid var(--border-color)',
+                        whiteSpace: 'nowrap', 
+                        overflow: 'hidden', 
+                        textOverflow: 'ellipsis',
+                        transition: 'all 0.2s ease'
                       }}
                     >
-                      📝 {path}
+                      <span style={{ marginRight: 8 }}>📝</span>
+                      {path}
                     </div>
                   ))}
                 </div>
                 <div style={{ flex: 1 }} />
-                <button type="button" className="glow-btn" style={{ width: '100%', marginBottom: 8, padding: '10px', fontSize: '0.82rem' }} onClick={handleOpenPR}>
+                <button 
+                  type="button" 
+                  className="glow-btn" 
+                  style={{ width: '100%', marginBottom: 10, padding: '12px', fontSize: '0.82rem' }} 
+                  onClick={handleOpenPR}
+                >
                   🚀 Open Pull Request
                 </button>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                  <input className="input-field" style={{ flex: 1, padding: '7px 10px', fontSize: '0.75rem' }}
-                    placeholder="Refine the fix..." value={feedback}
+                <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                  <input 
+                    className="input-field" 
+                    style={{ flex: 1, padding: '8px 10px', fontSize: '0.75rem' }}
+                    placeholder="Refine the fix..." 
+                    value={feedback}
                     onChange={(e) => setFeedback(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleRefine()} />
-                  <button type="button" className="glow-btn" style={{ padding: '8px 12px', fontSize: '0.8rem' }} onClick={handleRefine} disabled={!feedback}>↩</button>
+                    onKeyDown={(e) => e.key === 'Enter' && handleRefine()} 
+                  />
+                  <button 
+                    type="button" 
+                    className="glow-btn" 
+                    style={{ padding: '8px 14px', fontSize: '0.8rem' }} 
+                    onClick={handleRefine} 
+                    disabled={!feedback}
+                  >
+                    ↩
+                  </button>
                 </div>
-                <button type="button" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.72rem' }}
-                  onClick={() => { setResult(null); setFixedFileView(null); setCompletedSteps([]); }}>
+                <button 
+                  type="button" 
+                  style={{ 
+                    background: 'none', 
+                    border: 'none', 
+                    color: 'var(--text-muted)', 
+                    cursor: 'pointer', 
+                    fontSize: '0.72rem',
+                    padding: '8px',
+                    transition: 'color 0.2s'
+                  }}
+                  onClick={() => { setResult(null); setFixedFileView(null); setCompletedSteps([]); }}
+                  onMouseEnter={(e) => e.currentTarget.style.color = 'var(--primary)'}
+                  onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+                >
                   ← Pick another issue
                 </button>
               </>
             ) : (
               <>
-                <h3 style={{ marginBottom: 12, fontSize: '0.8rem', color: 'var(--text-main)', opacity: 0.6, letterSpacing: '0.1em' }}>🐛 ISSUES</h3>
-                <div style={{ flex: 1, overflowY: 'auto' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <h3 style={{ fontSize: '0.75rem', color: 'var(--text-muted)', letterSpacing: '0.1em', fontWeight: 600 }}>
+                    🐛 ISSUES
+                  </h3>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                    {repoInfo.issues.length}
+                  </span>
+                </div>
+                <div style={{ flex: 1, overflowY: 'auto', paddingRight: 4 }}>
                   {repoInfo.issues.length === 0 ? (
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center', paddingTop: 20 }}>No open issues found.</p>
+                    <div style={{ 
+                      textAlign: 'center', 
+                      padding: '40px 20px',
+                      color: 'var(--text-muted)',
+                      fontSize: '0.8rem'
+                    }}>
+                      <div style={{ fontSize: '2rem', marginBottom: 12 }}>✨</div>
+                      <p>No open issues found</p>
+                    </div>
                   ) : repoInfo.issues.map((issue) => (
                     <div
                       key={issue.number}
-                      className="step-card"
-                      style={{ cursor: running ? 'default' : 'pointer', padding: '10px', marginBottom: 8, opacity: running ? 0.5 : 1 }}
+                      className="repo-card"
+                      style={{ 
+                        cursor: running ? 'default' : 'pointer', 
+                        padding: '12px', 
+                        marginBottom: 10, 
+                        opacity: running ? 0.5 : 1 
+                      }}
                       onClick={() => !running && handleAnalyze(issue.url)}
                     >
-                      <div style={{ fontWeight: 600, fontSize: '0.78rem', marginBottom: 2 }}>#{issue.number} {issue.title}</div>
-                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>@{issue.author}</div>
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 8, 
+                        marginBottom: 6 
+                      }}>
+                        <span style={{ 
+                          fontSize: '0.7rem', 
+                          color: 'var(--primary)', 
+                          fontWeight: 600,
+                          fontFamily: 'monospace'
+                        }}>
+                          #{issue.number}
+                        </span>
+                        <span style={{ 
+                          fontSize: '0.78rem', 
+                          fontWeight: 600,
+                          color: 'var(--text-main)',
+                          flex: 1,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {issue.title}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                        by @{issue.author}
+                      </div>
                     </div>
                   ))}
                 </div>
                 {!running && (
-                  <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 12, marginTop: 8 }}>
-                    <input className="input-field" style={{ padding: '8px 10px', fontSize: '0.78rem', marginBottom: 8 }}
-                      placeholder="Paste issue URL..." value={issueUrl} onChange={(e) => setIssueUrl(e.target.value)} />
-                    <button type="button" className="glow-btn" style={{ width: '100%', padding: '9px', fontSize: '0.78rem' }}
-                      onClick={() => handleAnalyze()} disabled={!issueUrl}>
-                      Analyze
+                  <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 12, marginTop: 12 }}>
+                    <input 
+                      className="input-field" 
+                      style={{ padding: '8px 12px', fontSize: '0.78rem', marginBottom: 8 }}
+                      placeholder="Paste issue URL..." 
+                      value={issueUrl} 
+                      onChange={(e) => setIssueUrl(e.target.value)} 
+                    />
+                    <button 
+                      type="button" 
+                      className="glow-btn" 
+                      style={{ width: '100%', padding: '10px', fontSize: '0.78rem' }}
+                      onClick={() => handleAnalyze()} 
+                      disabled={!issueUrl}
+                    >
+                      Analyze Issue
                     </button>
                   </div>
                 )}
               </>
             )}
-            {error && <div style={{ marginTop: 8, fontSize: '0.75rem', color: 'var(--error)' }}>❌ {error}</div>}
+            {error && (
+              <div style={{ 
+                marginTop: 12, 
+                fontSize: '0.75rem', 
+                color: 'var(--error)',
+                background: 'rgba(239, 68, 68, 0.1)',
+                padding: 10,
+                borderRadius: 6,
+                border: '1px solid rgba(239, 68, 68, 0.3)'
+              }}>
+                ❌ {error}
+              </div>
+            )}
           </div>
         </div>
       </div>
