@@ -27,7 +27,7 @@ st.set_page_config(
     page_title="FixFlow — Autonomous Bug Resolution Agent",
     page_icon="🔧",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 
@@ -391,7 +391,7 @@ def init_session():
         "glm_api_key": GLM_API_KEY,
         "github_token": GITHUB_TOKEN,
         "model": GLM_MODEL,
-        "run_confidence": False,
+        "run_confidence": True,
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -400,84 +400,7 @@ def init_session():
 init_session()
 
 
-# ── Sidebar ───────────────────────────────────────────────────────────────────
-with st.sidebar:
-    st.markdown('<div class="sidebar-logo">🔧 FixFlow</div>', unsafe_allow_html=True)
-    st.markdown('<div style="color: #6b7280; font-size: 0.8rem; margin-bottom: 1.5rem;">Autonomous Bug Resolution Agent</div>', unsafe_allow_html=True)
 
-    st.markdown('<div class="sidebar-section-title">🔑 API Configuration</div>', unsafe_allow_html=True)
-
-    glm_key = st.text_input(
-        "GLM API Key (Z.ai)",
-        value=st.session_state.glm_api_key,
-        type="password",
-        placeholder="Enter your Z.ai GLM API key...",
-        help="Get your key at https://open.bigmodel.cn/",
-        key="glm_key_input",
-    )
-    if glm_key:
-        st.session_state.glm_api_key = glm_key
-
-    github_token = st.text_input(
-        "GitHub Token (optional)",
-        value=st.session_state.github_token,
-        type="password",
-        placeholder="ghp_... (for private repos / higher limits)",
-        help="Needed for private repos. Also increases rate limit from 60 to 5000 req/hr.",
-        key="github_token_input",
-    )
-    if github_token:
-        st.session_state.github_token = github_token
-
-    st.markdown('<div class="sidebar-section-title">⚙️ Model Settings</div>', unsafe_allow_html=True)
-
-    model_choice = st.selectbox(
-        "GLM Model",
-        options=["glm-5", "glm-5.1", "glm-5-plus", "glm-4-plus", "glm-4"],
-        index=0,
-        key="model_select",
-    )
-    st.session_state.model = model_choice
-
-    st.markdown('<div class="sidebar-section-title">🧪 Options</div>', unsafe_allow_html=True)
-
-    run_confidence = st.checkbox(
-        "Run confidence self-evaluation",
-        value=st.session_state.run_confidence,
-        help="Ask GLM to rate confidence in its own analysis (adds ~10-15s)",
-        key="confidence_check",
-    )
-    st.session_state.run_confidence = run_confidence
-
-    # Rate limit info
-    if st.session_state.github_token:
-        st.markdown('<div class="sidebar-section-title">📊 GitHub Status</div>', unsafe_allow_html=True)
-        try:
-            gh_temp = GitHubClient(token=st.session_state.github_token)
-            rl = gh_temp.get_rate_limit_info()
-            if rl:
-                remaining = rl.get("core_remaining", "?")
-                limit = rl.get("core_limit", "?")
-                pct = int(remaining / limit * 100) if isinstance(remaining, int) and isinstance(limit, int) else 0
-                color = "#10b981" if pct > 50 else "#f59e0b" if pct > 20 else "#ef4444"
-                st.markdown(
-                    f'<div style="font-size:0.8rem; color: {color};">API: {remaining}/{limit} requests remaining</div>',
-                    unsafe_allow_html=True
-                )
-        except Exception:
-            pass
-
-    st.markdown("---")
-    st.markdown(
-        '<div style="font-size: 0.72rem; color: #4b5563; line-height: 1.6;">'
-        '🔒 Your API keys are never stored or transmitted beyond direct API calls.<br><br>'
-        '⚡ Powered by <b style="color: #a78bfa;">GLM 5.1 by Z.ai</b>'
-        '</div>',
-        unsafe_allow_html=True
-    )
-
-
-# ── Main Content ──────────────────────────────────────────────────────────────
 
 # Header
 st.markdown("""

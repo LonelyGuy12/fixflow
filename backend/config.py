@@ -10,7 +10,7 @@ load_dotenv()
 # ── LLM Config ──────────────────────────────────────────────────────────────
 GLM_API_KEY: str = os.getenv("GLM_API_KEY", "")
 GLM_BASE_URL: str = os.getenv("GLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4")
-GLM_MODEL: str = os.getenv("GLM_MODEL", "glm-5-plus")
+GLM_MODEL: str = os.getenv("GLM_MODEL", "glm-5")
 
 # ── GitHub Config ────────────────────────────────────────────────────────────
 GITHUB_TOKEN: str = os.getenv("GITHUB_TOKEN", "")
