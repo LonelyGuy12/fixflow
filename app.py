@@ -10,7 +10,7 @@ from typing import Optional
 import streamlit as st
 
 from backend.agent import AgentResult, FixFlowAgent, generate_full_report
-from backend.config import GLM_MODEL, GLM_BASE_URL
+from backend.config import GLM_MODEL, GLM_BASE_URL, GLM_API_KEY, GITHUB_TOKEN
 from backend.github_client import GitHubClient
 from backend.llm_client import GLMClient
 
@@ -388,8 +388,8 @@ def init_session():
         "step_messages": {},
         "stream_buffer": "",
         "error": None,
-        "glm_api_key": "",
-        "github_token": "",
+        "glm_api_key": GLM_API_KEY,
+        "github_token": GITHUB_TOKEN,
         "model": GLM_MODEL,
         "run_confidence": False,
     }
@@ -433,7 +433,7 @@ with st.sidebar:
 
     model_choice = st.selectbox(
         "GLM Model",
-        options=["glm-5-plus", "glm-4-plus", "glm-4"],
+        options=["glm-5", "glm-5.1", "glm-5-plus", "glm-4-plus", "glm-4"],
         index=0,
         key="model_select",
     )
@@ -517,7 +517,6 @@ if issue_url and not repo_url:
     import re
     m = re.match(r"(https://github\.com/[^/]+/[^/]+)/issues/\d+", issue_url.strip())
     if m:
-        st.session_state["repo_url_input"] = m.group(1)
         repo_url = m.group(1)
 
 # Example buttons
@@ -786,15 +785,36 @@ if st.session_state.result:
         # Copy button for full diff
         if result.diff_formatted and result.diffs:
             st.markdown("---")
-            copy_col, _ = st.columns([1, 3])
+            copy_col, pr_col, _ = st.columns([1, 1, 2])
             with copy_col:
                 st.download_button(
-                    "📋 Copy Full Diff",
+                    "📋 Download .diff Patch",
                     data=result.diff_formatted,
                     file_name="fixflow.diff",
                     mime="text/plain",
                     use_container_width=True,
                 )
+            with pr_col:
+                if st.button("🚀 Open GitHub Pull Request", use_container_width=True, type="primary"):
+                    if not st.session_state.github_token:
+                        st.error("⚠️ A GitHub Token with write access is required to open a PR.")
+                    else:
+                        with st.spinner("🚀 Creating Pull Request..."):
+                            gh = GitHubClient(token=st.session_state.github_token)
+                            try:
+                                branch_name = f"fixflow-patch-{int(time.time())}"
+                                title = f"Fix: {result.issue_data.get('title', 'Issue')}"
+                                body = result.fix_explanation + "\n\n---\n*Generated autonomously by FixFlow*"
+                                pr_url = gh.create_pull_request(
+                                    repo_url=result.repo_url,
+                                    branch_name=branch_name,
+                                    files_content=result.fixed_files,
+                                    title=title,
+                                    body=body
+                                )
+                                st.success(f"✅ Created successfully: [View PR]({pr_url})")
+                            except Exception as e:
+                                st.error(f"Failed to create PR: {e}")
 
     # ── Step 5: Fix Explanation ───────────────────────────────────────────────
     with st.expander("📝 Step 5: PR Description & Fix Explanation", expanded=True):

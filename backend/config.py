@@ -14,6 +14,8 @@ GLM_MODEL: str = os.getenv("GLM_MODEL", "glm-5-plus")
 
 # ── GitHub Config ────────────────────────────────────────────────────────────
 GITHUB_TOKEN: str = os.getenv("GITHUB_TOKEN", "")
+if GITHUB_TOKEN == "your_github_token_here":
+    GITHUB_TOKEN = ""
 
 # ── Agent Limits ─────────────────────────────────────────────────────────────
 MAX_FILES_TO_SCAN: int = int(os.getenv("MAX_FILES_TO_SCAN", "100"))

@@ -228,6 +228,68 @@ class GitHubClient:
                 result[path] = content
         return result
 
+    # ── Pull Request Creation ─────────────────────────────────────────────────
+
+    def create_pull_request(
+        self,
+        repo_url: str,
+        branch_name: str,
+        files_content: Dict[str, str],
+        title: str,
+        body: str,
+    ) -> str:
+        """
+        Creates a new branch and commits all changed files, then opens a pull request.
+        Requires a GitHub token with write access to the repository.
+        Returns the HTML URL of the created PR.
+        """
+        if not self._gh.get_user():
+            raise RuntimeError("A valid GitHub Token with write access is required to create a PR.")
+            
+        owner, repo_name = parse_repo_url(repo_url)
+        logger.info("Creating PR on %s/%s branch %s", owner, repo_name, branch_name)
+        
+        try:
+            repo = self._gh.get_repo(f"{owner}/{repo_name}")
+            from github import InputGitTreeElement
+            
+            base_branch = repo.default_branch
+            base_ref = repo.get_git_ref(f"heads/{base_branch}")
+            
+            # Create new branch off base branch
+            try:
+                repo.create_git_ref(ref=f"refs/heads/{branch_name}", sha=base_ref.object.sha)
+            except GithubException:
+                logger.warning(f"Branch {branch_name} may already exist, proceeding to update it.")
+            
+            base_tree = repo.get_git_tree(base_ref.object.sha)
+            
+            # Create a blob for each changed file
+            elements = []
+            for filepath, content in files_content.items():
+                blob = repo.create_git_blob(content, "utf-8")
+                elements.append(
+                    InputGitTreeElement(path=filepath, mode='100644', type='blob', sha=blob.sha)
+                )
+                
+            # Create new tree with all blob changes batched together
+            new_tree = repo.create_git_tree(elements, base_tree)
+            parent = repo.get_git_commit(base_ref.object.sha)
+            commit = repo.create_git_commit(message=title, tree=new_tree, parents=[parent])
+            
+            # Update the branch reference to point to the new commit
+            ref = repo.get_git_ref(f"heads/{branch_name}")
+            ref.edit(commit.sha)
+            
+            # Create the actual PR
+            pr = repo.create_pull(title=title, body=body, head=branch_name, base=base_branch)
+            return pr.html_url
+            
+        except GithubException as e:
+            raise RuntimeError(
+                f"Failed to create PR. Ensure your GitHub token has write access to {owner}/{repo_name}. Detail: {e.data.get('message', str(e))}"
+            ) from e
+
     # ── Rate Limit Info ───────────────────────────────────────────────────────
 
     def get_rate_limit_info(self) -> Dict:
