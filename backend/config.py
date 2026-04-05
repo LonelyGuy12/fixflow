@@ -8,12 +8,12 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 # ── LLM Config ──────────────────────────────────────────────────────────────
-GLM_API_KEY: str = os.getenv("GLM_API_KEY", "")
-GLM_BASE_URL: str = os.getenv("GLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4")
-GLM_MODEL: str = os.getenv("GLM_MODEL", "glm-4-air")
+GLM_API_KEY: str = os.getenv("GLM_API_KEY", "").strip()
+GLM_BASE_URL: str = os.getenv("GLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4").strip()
+GLM_MODEL: str = os.getenv("GLM_MODEL", "glm-4-air").strip()
 
 # ── GitHub Config ────────────────────────────────────────────────────────────
-GITHUB_TOKEN: str = os.getenv("GITHUB_TOKEN", "")
+GITHUB_TOKEN: str = os.getenv("GITHUB_TOKEN", "").strip()
 if GITHUB_TOKEN == "your_github_token_here":
     GITHUB_TOKEN = ""
 
