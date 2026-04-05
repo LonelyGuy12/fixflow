@@ -120,6 +120,41 @@ class GitHubClient:
             "repo_name": repo_name,
         }
 
+    def list_open_issues(self, repo_url: str, limit: int = 20) -> List[Dict]:
+        """
+        List open issues for a repository.
+        Returns a list of structured dicts: {title, number, url, author, created_at, body_snippet}
+        """
+        owner, repo_name = parse_repo_url(repo_url)
+        logger.info("Listing open issues for %s/%s", owner, repo_name)
+
+        try:
+            repo = self._gh.get_repo(f"{owner}/{repo_name}")
+            # state='open' by default
+            issues = repo.get_issues(state='open', sort='updated', direction='desc')
+            
+            result = []
+            for issue in issues:
+                # Skip Pull Requests (PyGithub get_issues() returns both)
+                if issue.pull_request:
+                    continue
+                
+                result.append({
+                    "title": issue.title,
+                    "number": issue.number,
+                    "url": issue.html_url,
+                    "author": issue.user.login if issue.user else "unknown",
+                    "created_at": str(issue.created_at),
+                    "body_snippet": (issue.body[:200] + "...") if issue.body else "",
+                })
+                if len(result) >= limit:
+                    break
+            return result
+        except GithubException as e:
+            raise RuntimeError(
+                f"Failed to list issues: {e.data.get('message', str(e))}"
+            ) from e
+
     # ── Repo Tree ─────────────────────────────────────────────────────────────
 
     def fetch_repo_tree(

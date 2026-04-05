@@ -138,12 +138,13 @@ class FixFlowAgent:
             t1 = time.time()
 
             result.bug_summary = self._step1_issue_understanding(
-                result.issue_data, stream_callback
+                result.issue_data, None  # reasoning step — don't stream to UI
             )
             result.step_timings["1_issue"] = time.time() - t1
             self._emit("1_issue", "complete",
                        f"Bug analysis complete in {result.step_timings['1_issue']:.1f}s")
 
+            time.sleep(2)  # avoid burst rate-limiting
             # ── Step 2: Codebase Mapping ──────────────────────────────────
             self._emit("2_mapping", "running", "Scanning codebase to identify suspect files...")
             t2 = time.time()
@@ -153,7 +154,7 @@ class FixFlowAgent:
                     result.bug_summary,
                     result.file_tree,
                     result.issue_data,
-                    stream_callback,
+                    None,  # reasoning step — don't stream to UI
                     repo_url=repo_url,
                 )
             result.step_timings["2_mapping"] = time.time() - t2
@@ -161,6 +162,7 @@ class FixFlowAgent:
                        f"Identified {len(result.suspect_file_paths)} suspect files in "
                        f"{result.step_timings['2_mapping']:.1f}s")
 
+            time.sleep(2)  # avoid burst rate-limiting
             # ── Step 3: Deep Code Analysis ────────────────────────────────
             self._emit("3_analysis", "running",
                        f"Reading {len(result.suspect_file_paths)} files + performing root cause analysis...")
@@ -172,12 +174,13 @@ class FixFlowAgent:
             result.root_cause_analysis = self._step3_deep_analysis(
                 result.bug_summary,
                 result.original_file_contents,
-                stream_callback,
+                None,  # reasoning step — don't stream to UI
             )
             result.step_timings["3_analysis"] = time.time() - t3
             self._emit("3_analysis", "complete",
                        f"Root cause identified in {result.step_timings['3_analysis']:.1f}s")
 
+            time.sleep(2)  # avoid burst rate-limiting
             # ── Step 4: Fix Generation ────────────────────────────────────
             self._emit("4_fix", "running", "Generating corrected file contents...")
             t4 = time.time()
@@ -196,6 +199,7 @@ class FixFlowAgent:
                        f"Generated fixes for {len(result.fixed_files)} file(s) in "
                        f"{result.step_timings['4_fix']:.1f}s")
 
+            time.sleep(2)  # avoid burst rate-limiting
             # ── Step 5: Diff & Explanation ────────────────────────────────
             self._emit("5_diff", "running", "Generating diff and PR explanation...")
             t5 = time.time()
@@ -225,7 +229,7 @@ class FixFlowAgent:
                     f"# Root Cause\n{result.root_cause_analysis}\n\n"
                     f"# Fix Explanation\n{result.fix_explanation}"
                 )
-                result.confidence_eval = self._run_confidence_eval(combined)
+                result.confidence_eval = self._run_confidence_eval(combined)  # don't stream
                 result.step_timings["6_confidence"] = time.time() - t6
                 self._emit("6_confidence", "complete",
                            f"Confidence eval done in {result.step_timings['6_confidence']:.1f}s")
@@ -235,6 +239,75 @@ class FixFlowAgent:
             step = self._current_step or "unknown"
             result.step_errors[step] = str(e)
             self._emit(step, "error", f"❌ Pipeline failed: {e}")
+            raise
+
+        return result
+
+    def refine_fix(
+        self,
+        feedback: str,
+        result: AgentResult,
+        on_status: StatusCallback = None,
+        stream_callback: Optional[Callable[[str], None]] = None,
+    ) -> AgentResult:
+        """
+        Re-runs Step 4 and Step 5 by appending user feedback to the existing context.
+        Modifies and returns the same AgentResult object.
+        """
+        self._status = on_status or (lambda *a: None)
+        
+        try:
+            # ── Refine Fix Generation ─────────────────────────────────────
+            self._emit("4_refine", "running", "Refining the code based on your feedback...")
+            t4 = time.time()
+
+            # We append the feedback to the root cause to guide the fix generation
+            refined_root_cause = (
+                result.root_cause_analysis + 
+                f"\n\n[USER FEEDBACK ON PREVIOUS FIX]:\n"
+                f"The user reviewed the proposed fix and said:\n'{feedback}'\n\n"
+                f"Please update and refine the code correction to satisfy this feedback."
+            )
+
+            result.fix_generation_raw = self._step4_fix_generation(
+                refined_root_cause,
+                result.original_file_contents,
+                stream_callback,
+            )
+            result.fixed_files = parse_fixed_files_from_llm_response(
+                result.fix_generation_raw,
+                result.suspect_file_paths,
+            )
+            result.step_timings["4_refine"] = time.time() - t4
+            self._emit("4_refine", "complete",
+                       f"Generated refined fixes for {len(result.fixed_files)} file(s) in "
+                       f"{result.step_timings['4_refine']:.1f}s")
+
+            # ── Regenerate Diff & Explanation ─────────────────────────────
+            self._emit("5_diff", "running", "Generating updated diff and PR explanation...")
+            t5 = time.time()
+
+            result.diffs = generate_all_diffs(
+                result.original_file_contents, result.fixed_files
+            )
+            result.diff_formatted = format_diff_for_display(result.diffs)
+            result.diff_stats = get_diff_stats(result.diffs)
+
+            result.fix_explanation = self._step5_explanation(
+                result.bug_summary,
+                refined_root_cause,
+                result.diff_formatted,
+                stream_callback,
+            )
+            result.step_timings["5_diff_refined"] = time.time() - t5
+            self._emit("5_diff", "complete",
+                       f"Updated PR explanation ready in {result.step_timings['5_diff_refined']:.1f}s")
+
+        except Exception as e:
+            logger.exception("FixFlow refinement failed")
+            step = self._current_step or "unknown"
+            result.step_errors[step] = str(e)
+            self._emit(step, "error", f"❌ Refinement failed: {e}")
             raise
 
         return result
@@ -381,7 +454,7 @@ class FixFlowAgent:
         ]
         return self._llm_call(messages, stream_cb, temperature=0.3)
 
-    def _run_confidence_eval(self, analysis: str) -> str:
+    def _run_confidence_eval(self, analysis: str, stream_cb: Optional[Callable] = None) -> str:
         self._current_step = "6_confidence"
         prompt = CONFIDENCE_EVAL_PROMPT.format(analysis=analysis[:4000])
         messages = [
