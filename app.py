@@ -819,9 +819,7 @@ elif not st.session_state.running and not st.session_state.error:
 
     # How it works
     st.markdown("### 🔄 How It Works")
-    steps_html = """
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; margin-top: 1rem;">
-    """
+    steps_html = """<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; margin-top: 1rem;">"""
     how_steps = [
         ("1", "📡", "Fetch Issue", "Pulls the full GitHub issue: title, body, comments, labels"),
         ("2", "🗺️", "Map Codebase", "Identifies top 5-10 suspect files from the repo tree"),
@@ -831,12 +829,11 @@ elif not st.session_state.running and not st.session_state.error:
     ]
     for num, icon, title, desc in how_steps:
         steps_html += f"""
-        <div style="background: #12141a; border: 1px solid #2a2c36; border-radius: 10px; padding: 1rem; position: relative;">
-            <div style="position: absolute; top: -10px; left: 12px; background: linear-gradient(135deg, #6c63ff, #a78bfa); border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 800; color: white;">{num}</div>
-            <div style="font-size: 1.4rem; margin-bottom: 0.4rem; margin-top: 0.3rem;">{icon}</div>
-            <div style="font-weight: 700; font-size: 0.9rem; color: #f0f0ff; margin-bottom: 0.3rem;">{title}</div>
-            <div style="font-size: 0.78rem; color: #6b7280; line-height: 1.5;">{desc}</div>
-        </div>
-        """
+<div style="background: #12141a; border: 1px solid #2a2c36; border-radius: 10px; padding: 1rem; position: relative;">
+    <div style="position: absolute; top: -10px; left: 12px; background: linear-gradient(135deg, #6c63ff, #a78bfa); border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 800; color: white;">{num}</div>
+    <div style="font-size: 1.4rem; margin-bottom: 0.4rem; margin-top: 0.3rem;">{icon}</div>
+    <div style="font-weight: 700; font-size: 0.9rem; color: #f0f0ff; margin-bottom: 0.3rem;">{title}</div>
+    <div style="font-size: 0.78rem; color: #6b7280; line-height: 1.5;">{desc}</div>
+</div>"""
     steps_html += "</div>"
     st.markdown(steps_html, unsafe_allow_html=True)
