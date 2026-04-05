@@ -109,16 +109,15 @@ async def analyze_endpoint(issue_url: str, repo_url: str, run_confidence: bool =
     async def event_generator():
         while True:
             try:
-                # Wait up to 15s before sending a heartbeat ping to keep connection alive
                 msg = await asyncio.wait_for(queue.get(), timeout=15.0)
                 if msg["type"] == "eof":
+                    yield {"event": "eof", "data": json.dumps({"done": True})}
                     break
                 yield {
                     "event": msg["type"],
                     "data": json.dumps(msg["data"])
                 }
             except asyncio.TimeoutError:
-                # Send a heartbeat comment to prevent browser SSE timeout
                 yield {"event": "heartbeat", "data": json.dumps({"alive": True})}
 
     return EventSourceResponse(event_generator())
@@ -264,6 +263,7 @@ async def refine_endpoint(session_id: str, feedback: str):
             try:
                 msg = await asyncio.wait_for(queue.get(), timeout=15.0)
                 if msg["type"] == "eof":
+                    yield {"event": "eof", "data": json.dumps({"done": True})}
                     break
                 yield {
                     "event": msg["type"],
